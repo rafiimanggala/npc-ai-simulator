@@ -448,9 +448,83 @@ const NPC = {
 
 const GENRE_GUIDE = [
   {
+    genre: 'Boss Fights / Action RPG',
+    icon: '⚔️',
+    color: '#f85149',
+    games: ['Elden Ring', 'Black Myth: Wukong', 'Sekiro', 'Monster Hunter', 'Devil May Cry 5', 'God of War Ragnarok'],
+    techniques: [
+      { name: 'HFSM', tag: 'hfsm', role: 'Phase-based boss states: Phase1 (Normal→Combo→Punish→Recover) → Phase2 (Enraged→AoE→NewMoves). Health thresholds trigger phase transitions with new attack pools.' },
+      { name: 'Utility AI', tag: 'utility', role: 'Attack selection scores by context: player distance (close→sweep, mid→charge, far→projectile), player action (healing→punish, dodging→delayed), cooldowns, and weighted randomness for unpredictability.' },
+      { name: 'BT + FSM Hybrid', tag: 'bt', role: 'GoW Ragnarok migrated from Lua scripts to BTs. Boss BT: Selector(PunishHeal→ComboString→GapCloser→Reposition). FSM handles individual attack animations with startup/active/recovery frames.' },
+      { name: 'RL (Adaptive)', tag: 'rl', role: 'Black Myth Wukong uses DQN/PPO: bosses learn to counter repeated player tactics in real-time. Maximizes damage dealt while minimizing damage taken. RNG layer prevents full predictability.' },
+    ],
+    keyInsight: 'Souls-like boss AI is deceptively simple — most bosses use weighted-random attack selection from a table, NOT complex decision trees. The magic is in the ANIMATION DESIGN: long telegraphs (startup frames) communicate intent, variable timing (delayed attacks) test pattern recognition, and read attacks (punishing healing) create tension. Sekiro\'s posture system adds a meta-layer where AI posture recovery scales with HP, making aggression rewarding. Monster Hunter uses Think Table Files (THK) — lookup tables mapping distance/HP/position to attacks with cooldowns.',
+    implementation: `// Souls-like Boss AI: Phase + Weighted Attack Selection
+class BossAI {
+  constructor() {
+    this.phase = 1;
+    this.attackCooldown = 0;
+    this.comboStep = 0;
+    this.attacks = {
+      // Phase 1 attacks: [weight, range, startup, recovery]
+      1: [
+        { name: 'slash_combo',  weight: 30, minDist: 0,  maxDist: 3, startup: 18, frames: 45 },
+        { name: 'thrust',       weight: 25, minDist: 2,  maxDist: 5, startup: 24, frames: 50 },
+        { name: 'sweep',        weight: 20, minDist: 0,  maxDist: 2, startup: 15, frames: 35 },
+        { name: 'jump_slam',    weight: 15, minDist: 4,  maxDist: 10, startup: 30, frames: 60 },
+        { name: 'heal_punish',  weight: 10, minDist: 0,  maxDist: 8, startup: 8,  frames: 40 },
+      ],
+      // Phase 2: faster, new moves, higher aggression
+      2: [
+        { name: 'fury_combo',   weight: 25, minDist: 0,  maxDist: 3, startup: 12, frames: 55 },
+        { name: 'aoe_explosion',weight: 20, minDist: 0,  maxDist: 6, startup: 35, frames: 70 },
+        { name: 'delayed_slash',weight: 25, minDist: 1,  maxDist: 4, startup: 40, frames: 45 },
+        { name: 'grab',         weight: 15, minDist: 0,  maxDist: 2, startup: 20, frames: 80 },
+        { name: 'phase2_charge',weight: 15, minDist: 5,  maxDist: 15, startup: 25, frames: 50 },
+      ],
+    };
+  }
+
+  update(dt, playerState) {
+    // Phase transition at HP threshold
+    if (this.hp < this.maxHp * 0.5 && this.phase === 1) {
+      this.phase = 2;
+      this.triggerPhaseTransition(); // cinematic + AoE
+      return;
+    }
+
+    if (this.attackCooldown > 0) { this.attackCooldown -= dt; return; }
+
+    // READ ATTACK: detect player healing
+    if (playerState.isHealing && this.phase >= 1) {
+      this.execute('heal_punish'); // guaranteed punish
+      return;
+    }
+
+    // Weighted random selection filtered by distance
+    const dist = this.distanceTo(player);
+    const pool = this.attacks[this.phase]
+      .filter(a => dist >= a.minDist && dist <= a.maxDist);
+    const selected = weightedRandom(pool);
+    this.execute(selected);
+  }
+
+  execute(attack) {
+    this.currentAttack = attack;
+    this.attackCooldown = (attack.frames / 60)  // frame → seconds
+      * (this.phase === 2 ? 0.7 : 1.0);        // faster in phase 2
+    playAnimation(attack.name, attack.startup);  // telegraph!
+  }
+}
+
+// Sekiro posture system addition:
+// boss.postureRecovery = baseRecovery * (boss.hp / boss.maxHp)
+// Lower HP → slower posture recovery → encourages aggression`,
+  },
+  {
     genre: 'Fighting Games',
     icon: '🥊',
-    color: '#f85149',
+    color: '#f0883e',
     games: ['Street Fighter 6', 'Tekken 8', 'Guilty Gear Strive', 'Super Smash Bros.'],
     techniques: [
       { name: 'FSM', tag: 'fsm', role: 'Combo state machine — each move is a state with frame-perfect transitions. Idle → Startup → Active → Recovery → Idle.' },

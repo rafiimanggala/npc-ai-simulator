@@ -1,8 +1,12 @@
+import { InfoModal } from './info-modal.js';
+
 export class Controls {
   constructor(engine, registry, graphRenderer) {
     this.engine = engine;
     this.registry = registry;
     this.graphRenderer = graphRenderer;
+    this._activeId = null;
+    this._infoModal = new InfoModal();
     this._initTabs();
     this._initControls();
     this._initInfoPanel();
@@ -21,6 +25,7 @@ export class Controls {
   }
 
   _onTabClick(id) {
+    this._activeId = id;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab[data-id="${id}"]`).classList.add('active');
     document.getElementById('graph-title').textContent = this.registry.techniques.get(id).name;
@@ -49,7 +54,13 @@ export class Controls {
       speedBtn.textContent = `Speed: ${speeds[speedIdx]}x`;
     });
 
-    container.append(playBtn, resetBtn, speedBtn);
+    const infoBtn = this._btn('Game Examples', 'secondary', () => {
+      if (this._activeId) this._infoModal.show(this._activeId);
+    });
+    infoBtn.style.background = '#0d419d';
+    infoBtn.style.color = '#58a6ff';
+
+    container.append(playBtn, resetBtn, speedBtn, infoBtn);
   }
 
   _btn(text, cls, handler) {

@@ -20,6 +20,15 @@ export class NPC {
     const dy = ty - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 2) return true;
+    const step = this.speed * dt;
+    if (step >= dist) {
+      this.x = tx;
+      this.y = ty;
+      this.vx = 0;
+      this.vy = 0;
+      this.angle = Math.atan2(dy, dx);
+      return true;
+    }
     this.vx = (dx / dist) * this.speed;
     this.vy = (dy / dist) * this.speed;
     this.x += this.vx * dt;

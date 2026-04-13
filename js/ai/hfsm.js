@@ -68,8 +68,10 @@ export function createHFSM(world) {
         if (timer > 1) { substate = 'Investigate'; investigatePos = { x: world.player.x, y: world.player.y }; timer = 0; }
         break;
       case 'ALERT.Investigate':
-        if (investigatePos && npc.moveTo(investigatePos.x, investigatePos.y, dt)) {
-          npc.angle += dt * 3;
+        if (investigatePos) {
+          if (npc.moveTo(investigatePos.x, investigatePos.y, dt)) {
+            npc.angle += dt * 3;
+          }
           if (timer > 3) { investigatePos = null; timer = 0; }
         }
         break;
@@ -97,7 +99,7 @@ export function createHFSM(world) {
 
   brain.getState = () => ({
     label: `${superstate} > ${substate}`,
-    detail: `Timer: ${timer.toFixed(1)}s | Player HP: ${world.player.health}`,
+    detail: `Timer: ${timer.toFixed(1)}s | Player HP: ${world.player?.health ?? 'N/A'}`,
   });
 
   brain.getGraphData = () => {
@@ -139,6 +141,7 @@ export function createHFSM(world) {
 
   brain.reset = () => {
     superstate = 'PEACEFUL'; substate = 'Idle'; timer = 0; waypointIdx = 0;
+    investigatePos = null; npc = null;
   };
 
   return brain;

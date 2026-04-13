@@ -96,18 +96,30 @@ export function createBT(world) {
       }),
       new Action('Attack', (b, dt) => {
         npc.stop();
+        npc.angle = Math.atan2(world.player.y - npc.y, world.player.x - npc.x);
+        if (!world.player.alive) {
+          b.lastKnownPos = null;
+          b.alertLevel = 0;
+          b.attackTimer = 0;
+          return STATUS.SUCCESS;
+        }
         b.attackTimer += dt;
         if (b.attackTimer >= 0.8) {
           world.player.health -= 10;
           b.attackTimer = 0;
-          if (world.player.health <= 0) { world.player.alive = false; return STATUS.SUCCESS; }
+          if (world.player.health <= 0) {
+            world.player.alive = false;
+            b.lastKnownPos = null;
+            b.alertLevel = 0;
+            return STATUS.SUCCESS;
+          }
         }
         return STATUS.RUNNING;
       }),
     ]),
     // 2. Chase sequence
     new Sequence('ChaseSeq', [
-      new Condition('EnemySeen?', (b) => npc && npc.canSee(world.player)),
+      new Condition('EnemySeen?', (b) => npc && world.player.alive && npc.canSee(world.player)),
       new Action('Chase', (b, dt) => {
         b.lastKnownPos = { x: world.player.x, y: world.player.y };
         b.alertLevel = Math.min(b.alertLevel + dt, 3);
@@ -223,6 +235,7 @@ export function createBT(world) {
   };
 
   brain.reset = () => {
+    npc = null;
     waypointIdx = 0;
     Object.assign(bb, { target: null, lastKnownPos: null, alertLevel: 0, investigateTimer: 0, attackTimer: 0, backupCalled: false });
     tree.reset();

@@ -53,6 +53,8 @@ export function createFSM(world) {
       case STATES.IDLE:
         npc.stop();
         idleTimer += dt;
+        // Rotate to scan surroundings while idle
+        npc.angle += dt * 0.8;
         if (idleTimer >= IDLE_DURATION) {
           state = STATES.PATROL;
           idleTimer = 0;
@@ -80,6 +82,7 @@ export function createFSM(world) {
 
       case STATES.DETECT:
         npc.stop();
+        npc.angle = Math.atan2(player.y - npc.y, player.x - npc.x);
         detectTimer += dt;
         if (!npc.canSee(player)) {
           state = STATES.PATROL;
@@ -109,6 +112,8 @@ export function createFSM(world) {
 
       case STATES.ATTACK:
         npc.stop();
+        npc.angle = Math.atan2(player.y - npc.y, player.x - npc.x);
+        if (!player.alive) { state = STATES.RETURN; break; }
         attackTimer += dt;
         if (attackTimer >= ATTACK_COOLDOWN) {
           player.health -= 10;
@@ -209,6 +214,7 @@ export function createFSM(world) {
     detectTimer = 0;
     attackTimer = 0;
     lostTimer = 0;
+    npc = null;
   };
 
   return brain;

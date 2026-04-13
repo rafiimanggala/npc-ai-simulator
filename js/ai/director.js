@@ -34,6 +34,7 @@ export function createDirector(world) {
     // Phase transitions
     if (phaseTimer >= PHASE_DURATIONS[phase]) {
       phaseTimer = 0;
+      spawnTimer = 0;
       if (phase === 'BUILD_UP') phase = 'PEAK';
       else if (phase === 'PEAK') phase = 'RELAX';
       else phase = 'BUILD_UP';
@@ -52,11 +53,18 @@ export function createDirector(world) {
       enemies.push(npc);
     }
 
+    // Cap enemy count for performance
+    if (enemies.length > 30) {
+      const removed = enemies.splice(0, enemies.length - 30);
+      removed.forEach(e => { world.npcs = world.npcs.filter(n => n !== e); });
+    }
+
     // Move enemies toward player
     enemies.forEach(e => {
       e.moveTo(world.player.x, world.player.y, dt);
-      if (e.distanceTo && e.distanceTo(world.player) < 20) {
-        world.player.health -= dt * 5;
+      if (e.distanceTo && e.distanceTo(world.player) < 20 && world.player.health > 0) {
+        world.player.health = Math.max(0, world.player.health - dt * 5);
+        if (world.player.health <= 0) world.player.alive = false;
       }
     });
 
@@ -125,6 +133,7 @@ export function createDirector(world) {
   brain.reset = () => {
     phase = 'BUILD_UP'; tension = 0; phaseTimer = 0; spawnTimer = 0;
     enemies = []; tensionHistory = []; totalTime = 0;
+    world.npcs = [];
   };
 
   return brain;

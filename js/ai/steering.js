@@ -56,7 +56,7 @@ export function createSteering(world) {
     boids = [];
     for (let i = 0; i < 30; i++) {
       const b = new Boid(
-        Math.random() * world.width * 0.5 + world.width * 0.05,
+        Math.random() * world.width * 0.9 + world.width * 0.05,
         Math.random() * world.height,
         i
       );
@@ -91,12 +91,26 @@ export function createSteering(world) {
       });
 
       if (sepCount > 0) {
-        const s = steer(boid, boid.x + sepX, boid.y + sepY, boid.maxSpeed, boid.maxForce);
-        boid.applyForce(s.x * weights.separation, s.y * weights.separation);
+        sepX /= sepCount; sepY /= sepCount;
+        const sepMag = Math.sqrt(sepX * sepX + sepY * sepY);
+        if (sepMag > 0.01) {
+          let desVx = (sepX / sepMag) * boid.maxSpeed - boid.vx;
+          let desVy = (sepY / sepMag) * boid.maxSpeed - boid.vy;
+          const mag = Math.sqrt(desVx * desVx + desVy * desVy);
+          if (mag > boid.maxForce) { desVx = (desVx / mag) * boid.maxForce; desVy = (desVy / mag) * boid.maxForce; }
+          boid.applyForce(desVx * weights.separation, desVy * weights.separation);
+        }
       }
       if (aliCount > 0) {
-        const s = steer(boid, boid.x + aliVx / aliCount, boid.y + aliVy / aliCount, boid.maxSpeed, boid.maxForce);
-        boid.applyForce(s.x * weights.alignment, s.y * weights.alignment);
+        const avgVx = aliVx / aliCount, avgVy = aliVy / aliCount;
+        const avgSpeed = Math.sqrt(avgVx * avgVx + avgVy * avgVy);
+        if (avgSpeed > 0.01) {
+          let desVx = (avgVx / avgSpeed) * boid.maxSpeed - boid.vx;
+          let desVy = (avgVy / avgSpeed) * boid.maxSpeed - boid.vy;
+          const mag = Math.sqrt(desVx * desVx + desVy * desVy);
+          if (mag > boid.maxForce) { desVx = (desVx / mag) * boid.maxForce; desVy = (desVy / mag) * boid.maxForce; }
+          boid.applyForce(desVx * weights.alignment, desVy * weights.alignment);
+        }
       }
       if (cohCount > 0) {
         const s = steer(boid, cohX / cohCount, cohY / cohCount, boid.maxSpeed, boid.maxForce);
@@ -109,11 +123,11 @@ export function createSteering(world) {
       boid.update(dt, world.width, world.height);
     });
 
-    // Sync NPC positions
-    world.npcs.forEach((npc, i) => {
-      if (boids[i]) {
-        npc.x = boids[i].x; npc.y = boids[i].y;
-        npc.angle = Math.atan2(boids[i].vy, boids[i].vx);
+    // Sync NPC positions via boid reference
+    world.npcs.forEach(npc => {
+      if (npc._boidRef) {
+        npc.x = npc._boidRef.x; npc.y = npc._boidRef.y;
+        npc.angle = Math.atan2(npc._boidRef.vy, npc._boidRef.vx);
       }
     });
   };
@@ -146,7 +160,10 @@ export function createSteering(world) {
     return { nodes, edges: [], activeNodeId: 'sep', layout: 'force' };
   };
 
-  brain.reset = () => {};
+  brain.reset = () => {
+    boids = [];
+    world.npcs = [];
+  };
 
   return brain;
 }

@@ -66,7 +66,9 @@ export function createUtility(world) {
     needs.energy = Math.max(0, needs.energy - dt * 0.015);
     needs.curiosity = Math.min(1, needs.curiosity + dt * 0.02);
 
+    const prev = currentAction;
     currentAction = evaluate();
+    if (currentAction !== prev) actionTimer = 0;
 
     switch (currentAction) {
       case 'PATROL': {
@@ -109,6 +111,7 @@ export function createUtility(world) {
   });
 
   brain.getGraphData = () => {
+    if (Object.keys(scores).length === 0) evaluate();
     const barWidth = 200;
     const startX = 40, startY = 30;
 
@@ -128,6 +131,7 @@ export function createUtility(world) {
   brain.reset = () => {
     needs.hunger = 0.3; needs.energy = 0.8; needs.curiosity = 0.2;
     currentAction = 'PATROL'; waypointIdx = 0; actionTimer = 0;
+    npc = null;
   };
 
   return brain;

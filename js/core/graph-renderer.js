@@ -130,8 +130,12 @@ export class GraphRenderer {
       div.className = 'graph-html';
       div.style.cssText = 'width:100%;height:100%;overflow:auto;padding:12px;';
       this.container.appendChild(div);
+      div.innerHTML = htmlContent;
+      this._lastHtml = htmlContent;
+    } else if (this._lastHtml !== htmlContent) {
+      div.innerHTML = htmlContent;
+      this._lastHtml = htmlContent;
     }
-    div.innerHTML = htmlContent;
   }
 
   showSVG() {

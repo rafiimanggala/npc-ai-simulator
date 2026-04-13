@@ -182,6 +182,14 @@ export function createRL(world) {
     qTable = {}; agentPos = { col: 0, row: 0 };
     episode = 0; totalReward = 0; stepCount = 0;
     rewardHistory = []; epsilon = 0.3;
+    walls = new Set();
+    [[3,0],[3,1],[3,2],[3,3],[5,4],[5,5],[5,6],[5,7],[5,8],[7,1],[7,2],[7,3],[7,4],[7,5],[2,6],[2,7],[2,8]].forEach(
+      ([c,r]) => walls.add(stateKey(c, r))
+    );
+    if (world.npcs[0]) {
+      world.npcs[0].x = agentPos.col * cellW + cellW / 2;
+      world.npcs[0].y = agentPos.row * cellH + cellH / 2;
+    }
   };
 
   return brain;

@@ -22,11 +22,13 @@ export function createLLMNPC(world) {
   let npc = null;
   let emotion = 'neutral';
   let chatLog = [];
-  let apiKey = '';
   let inputEl = null;
   let chatEl = null;
   let wanderTarget = null;
   let wanderTimer = 0;
+  let chatDirty = true;
+  let cachedHtml = '';
+  let listenersAttached = false;
 
   function getScriptedResponse(input) {
     const lower = input.toLowerCase();
@@ -80,12 +82,11 @@ export function createLLMNPC(world) {
 
   brain.getState = () => ({
     label: `${emotion.toUpperCase()}`,
-    detail: `Messages: ${chatLog.length} | Mode: ${apiKey ? 'Claude API' : 'Scripted'}`,
+    detail: `Messages: ${chatLog.length} | Mode: Scripted`,
   });
 
-  brain.getGraphData = () => {
-    // Render chat log as HTML overlay
-    const chatHtml = `
+  function buildChatHtml() {
+    return `
       <div style="font-family: -apple-system, sans-serif; color: #e6edf3; height: 100%; display: flex; flex-direction: column;">
         <div style="padding: 8px 12px; border-bottom: 1px solid #30363d; font-size: 11px; color: #8b949e;">
           CONVERSATION LOG — Aldric (${emotion})
@@ -115,12 +116,20 @@ export function createLLMNPC(world) {
         </div>
       </div>
     `;
+  }
 
-    // Use HTML rendering instead of SVG
-    return { nodes: [], edges: [], activeNodeId: null, html: chatHtml, layout: 'custom', _html: true };
+  brain.getGraphData = () => {
+    // Only rebuild HTML when chat changes (dirty flag prevents 60fps DOM destruction)
+    if (chatDirty) {
+      cachedHtml = buildChatHtml();
+      chatDirty = false;
+      listenersAttached = false;
+    }
+    return { nodes: [], edges: [], activeNodeId: null, html: cachedHtml, layout: 'custom', _html: true };
   };
 
   brain.onGraphRendered = (container) => {
+    if (listenersAttached) return;
     const input = container.querySelector('#npc-chat-input');
     const btn = container.querySelector('#npc-chat-send');
     if (!input || !btn) return;
@@ -133,15 +142,26 @@ export function createLLMNPC(world) {
       chatLog.push({ role: 'npc', text: resp.response, emotion: resp.emotion });
       emotion = resp.emotion;
       input.value = '';
+      chatDirty = true;
     };
 
     btn.onclick = send;
     input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+    listenersAttached = true;
+
+    // Auto-scroll to latest message
+    const msgDiv = container.querySelector('#chat-messages');
+    if (msgDiv) msgDiv.scrollTop = msgDiv.scrollHeight;
   };
 
   brain.reset = () => {
     emotion = 'neutral';
     chatLog = [{ role: 'npc', text: "Greetings, traveler. What brings you here?", emotion: 'neutral' }];
+    npc = null;
+    wanderTarget = null;
+    wanderTimer = 0;
+    chatDirty = true;
+    listenersAttached = false;
   };
 
   return brain;

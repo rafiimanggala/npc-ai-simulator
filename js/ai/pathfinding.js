@@ -78,7 +78,7 @@ export function createPathfinding(world) {
 
   const brain = new AIBrain(world);
   brain.name = 'A* Pathfinding';
-  brain.description = 'A* pathfinding on grid — click to place obstacles';
+  brain.description = 'A* pathfinding on grid — navigate around obstacles';
 
   brain.setupWorld = () => {
     world.setWaypoints([]);
@@ -197,6 +197,10 @@ export function createPathfinding(world) {
 
   brain.reset = () => {
     pathIdx = 0;
+    if (npc) {
+      npc.x = start.col * cellW + cellW / 2;
+      npc.y = start.row * cellH + cellH / 2;
+    }
     _recalc();
   };
 

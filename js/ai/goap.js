@@ -90,6 +90,12 @@ export function createGOAP(world) {
 
   brain.update = (dt) => {
     if (!npc || currentPlan.length === 0) return;
+
+    // Dynamic goal selection based on NPC health
+    if (npc.health < 40) worldState.healthy = false;
+    const newGoal = (!worldState.healthy && npc.health < 40) ? 'StayAlive' : 'KillEnemy';
+    if (newGoal !== currentGoal) { currentGoal = newGoal; _replan(); }
+
     if (planIdx >= currentPlan.length) { _replan(); return; }
 
     const action = currentPlan[planIdx];
@@ -115,6 +121,11 @@ export function createGOAP(world) {
         break;
       case 'Attack':
         npc.stop();
+        npc.angle = Math.atan2(world.player.y - npc.y, world.player.x - npc.x);
+        // Simulate player fighting back
+        if (npc.distanceTo(world.player) < npc.attackRange * 2) {
+          npc.health = Math.max(0, npc.health - dt * 8);
+        }
         if (actionTimer > 0.5) {
           world.player.health -= 15;
           actionTimer = 0;
@@ -184,8 +195,11 @@ export function createGOAP(world) {
 
   brain.reset = () => {
     Object.assign(worldState, { hasWeapon: false, inRange: false, enemyAlive: true, healthy: true });
+    currentGoal = 'KillEnemy';
+    currentPlan = [];
+    planIdx = 0;
+    actionTimer = 0;
     npc = null;
-    _replan();
   };
 
   return brain;

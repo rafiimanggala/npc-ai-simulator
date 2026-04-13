@@ -290,3 +290,108 @@ footer#bottom-bar {
 .info-code code {
   white-space: pre;
 }
+
+/* Modal Tabs */
+.info-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.info-tab {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.info-tab:hover { color: var(--text); }
+.info-tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+.info-tab-content.hidden { display: none; }
+
+.info-technique-title {
+  font-size: 16px;
+  color: var(--blue);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* Genre Accordion */
+.genre-block {
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.genre-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-left: 3px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.genre-header:hover { background: #1c2128; }
+.genre-header-open { background: #1c2128; }
+
+.genre-icon { font-size: 20px; }
+
+.genre-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.genre-games {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.genre-body {
+  padding: 14px;
+  background: var(--panel);
+}
+
+.genre-body.hidden { display: none; }
+
+.genre-techniques {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.genre-tech {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.genre-tech-tag {
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.genre-tech-role {
+  color: var(--text-muted);
+}

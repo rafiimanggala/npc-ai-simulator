@@ -446,6 +446,271 @@ const NPC = {
   },
 };
 
+const GENRE_GUIDE = [
+  {
+    genre: 'Fighting Games',
+    icon: '🥊',
+    color: '#f85149',
+    games: ['Street Fighter 6', 'Tekken 8', 'Guilty Gear Strive', 'Super Smash Bros.'],
+    techniques: [
+      { name: 'FSM', tag: 'fsm', role: 'Combo state machine — each move is a state with frame-perfect transitions. Idle → Startup → Active → Recovery → Idle.' },
+      { name: 'Behavior Tree', tag: 'bt', role: 'Decision layer: evaluate distance → check frame advantage → select optimal punish or poke. Priority: anti-air > whiff punish > pressure.' },
+      { name: 'RL / Neural Network', tag: 'rl', role: 'SF6 V-Rival trains neural nets on millions of ranked matches to mimic real player behavior at any skill level. PSO-based adaptive AI adjusts strategy mid-fight.' },
+      { name: 'Utility AI', tag: 'utility', role: 'Score actions by frame data: if opponent whiffed a heavy → score "Punish" high. Low health → score "Defensive" high. Meter full → score "Super" higher.' },
+    ],
+    keyInsight: 'Fighting game AI operates on 60fps frame data. A 12-frame combo input window is ~200ms. The AI must read opponent patterns (sequence prediction) and react within 1-3 frames. Modern fighting games (SF6) use neural networks trained on real player data rather than hardcoded reaction times.',
+    implementation: `// Fighting Game AI: Frame-aware decision making
+function decideFighterAction(state) {
+  const frameDiff = state.myRecovery - state.oppRecovery;
+
+  if (frameDiff > 0) {
+    // We're at frame DISADVANTAGE — defend
+    return scoreDefensiveOptions(state);
+  }
+  // Frame advantage — attack
+  const actions = [
+    { name: 'jab',     score: 0.3, startup: 4  },
+    { name: 'heavy',   score: 0.5, startup: 12 },
+    { name: 'special', score: 0.7, startup: 8  },
+    { name: 'super',   score: state.meter > 50 ? 0.9 : 0, startup: 5 },
+  ];
+  // Score by opponent distance + frame window
+  actions.forEach(a => {
+    a.score *= distanceCurve(state.distance, a.range);
+    a.score *= frameDiff >= a.startup ? 1.2 : 0.5;
+  });
+  return pickHighestScore(actions);
+}`,
+  },
+  {
+    genre: 'Racing Games',
+    icon: '🏎️',
+    color: '#f0883e',
+    games: ['Forza Motorsport', 'Gran Turismo 7', 'Mario Kart 8', 'Need for Speed'],
+    techniques: [
+      { name: 'A* Pathfinding', tag: 'pathfinding', role: 'Racing line calculation — find optimal path through corners using waypoints on track spline. Cost = distance + curvature penalty.' },
+      { name: 'Steering Behaviors', tag: 'steering', role: 'Seek racing line + avoid other cars + wall avoidance. Overtaking = temporary target offset from racing line.' },
+      { name: 'RL (Drivatar)', tag: 'rl', role: 'Forza\'s Drivatar learns YOUR driving style — braking points, cornering aggression, preferred lines — to create personalized AI opponents.' },
+      { name: 'Director AI', tag: 'director', role: 'Rubber-banding / DDA: AI slows down when too far ahead, speeds up when behind. Mario Kart items scale with position (blue shell for last place).' },
+    ],
+    keyInsight: 'Racing AI has two layers: tactical (racing line, overtaking) and meta (rubber-banding for fun). Forza\'s Drivatar was revolutionary — instead of scripted difficulty, AI clones of real players create unpredictable races. Gran Turismo uses "Sophy" RL agent trained via self-play to achieve superhuman lap times.',
+    implementation: `// Racing AI: Line following + overtaking
+function updateRacerAI(car, dt) {
+  // 1. Find target point on racing line
+  const target = racingLine.getPointAhead(car.position, lookahead);
+
+  // 2. Steering toward racing line
+  const steerForce = steerToward(car, target);
+
+  // 3. Overtaking logic
+  const ahead = getCarAhead(car, 30); // 30m lookahead
+  if (ahead && !ahead.isPlayer) {
+    // Offset target to inside of next corner
+    target = racingLine.getOffset(target, overtakeSide);
+  }
+
+  // 4. Speed control — brake for corners
+  const cornerSharpness = racingLine.getCurvature(car.position);
+  const targetSpeed = maxSpeed * (1.0 - cornerSharpness * 0.8);
+  const throttle = car.speed < targetSpeed ? 1.0 : -0.5;
+
+  // 5. Rubber-banding (Director layer)
+  if (distToPlayer > 100) throttle *= 0.85; // slow down
+  if (distToPlayer < -80) throttle *= 1.10; // catch up
+}`,
+  },
+  {
+    genre: 'RTS / Strategy',
+    icon: '⚔️',
+    color: '#58a6ff',
+    games: ['StarCraft II', 'Age of Empires IV', 'Civilization VI', 'Total War'],
+    techniques: [
+      { name: 'GOAP', tag: 'goap', role: 'Build order planning: Goal(ArmyReady) → BuildBarracks → TrainMarines → Scout → Attack. Plans adapt to scouted enemy composition.' },
+      { name: 'HFSM', tag: 'hfsm', role: 'Strategic hierarchy: Economy (Expand/Mine/Trade) → Military (Defend/Attack/Retreat) → Diplomacy. Each layer has sub-state machines.' },
+      { name: 'A* Pathfinding', tag: 'pathfinding', role: 'Unit navigation on terrain. Hierarchical A* (HPA*) for large maps — pathfind on region graph first, then refine locally.' },
+      { name: 'RL', tag: 'rl', role: 'AlphaStar: transformer + LSTM architecture trained on replays then refined via league self-play. Reached top 0.2% (Grandmaster) in SC2.' },
+    ],
+    keyInsight: 'RTS AI splits into Macro (economy, build orders, strategy) and Micro (unit control, kiting, focus fire). AlphaStar mastered both but used separate training: supervised learning on replays for macro, RL self-play for micro. Traditional RTS AI uses influence maps — heatmaps of enemy presence guiding strategic decisions.',
+    implementation: `// RTS AI: Macro strategy + Micro control
+class RTSCommander {
+  // MACRO: Strategic decisions (every 5 seconds)
+  updateStrategy() {
+    const threat = influenceMap.getEnemyStrength(base);
+    if (threat > myArmy * 0.8) {
+      this.goal = 'DEFEND';
+      this.buildOrder = ['Turret', 'Marine', 'Marine'];
+    } else if (resources > 400) {
+      this.goal = 'EXPAND';
+      this.buildOrder = ['Worker', 'Base', 'Worker'];
+    } else {
+      this.goal = 'HARASS';
+      this.buildOrder = ['Marine', 'Medic'];
+    }
+  }
+
+  // MICRO: Unit-level tactics (every frame)
+  controlUnits(units) {
+    units.forEach(unit => {
+      const target = findWeakestInRange(unit);
+      if (unit.health < 20) kiteAway(unit, target);
+      else if (target) attackMove(unit, target);
+      else regroup(unit, rallyPoint);
+    });
+  }
+}`,
+  },
+  {
+    genre: 'Sports Games',
+    icon: '⚽',
+    color: '#3fb950',
+    games: ['NBA 2K26', 'FIFA / EA FC', 'Madden NFL', 'MLB The Show'],
+    techniques: [
+      { name: 'FSM', tag: 'fsm', role: 'Player states: HasBall (dribble/shoot/pass) → OffBall (cut/screen/space) → Defense (guard/help/rotate). Clean state transitions per possession.' },
+      { name: 'Utility AI', tag: 'utility', role: 'NBA 2K26: 10+ difficulty variables score actions — help defense rotation, steal opportunity, post/perimeter mismatch detection, screen navigation.' },
+      { name: 'Steering/Flocking', tag: 'steering', role: 'Team spacing — players maintain formation while avoiding clumping. "Ball gravity" pulls defenders toward ball carrier dynamically.' },
+      { name: 'Behavior Tree', tag: 'bt', role: 'Playbook execution: Selector(RunPlay → ReadDefense → Improvise). 80+ plays per team in NBA 2K26 with adaptive reads.' },
+    ],
+    keyInsight: 'Sports AI is uniquely complex because 10-22 agents must coordinate in real-time while following sport-specific rules. NBA 2K26 added "awareness depth" — defenders recognize pass initiations faster and evaluate screen navigation directionally. The challenge: AI must look natural (not robotic) while also being competitively fair.',
+    implementation: `// Sports AI: Team coordination + individual decisions
+function updateTeamAI(team, ball) {
+  const play = playbook.getCurrentPlay(team);
+
+  team.players.forEach(player => {
+    if (player.hasBall) {
+      // Decision: shoot vs pass vs drive
+      const shotQuality = evaluateShot(player, defenders);
+      const passOptions = findOpenTeammates(team);
+      const driveScore = evaluateDrive(player, basket);
+
+      if (shotQuality > 0.7) shoot(player);
+      else if (passOptions[0]?.score > 0.6) pass(player, passOptions[0]);
+      else dribble(player, driveScore);
+    } else {
+      // Off-ball: follow play + react to defense
+      const assignedPos = play.getPosition(player.role);
+      const spacing = maintainFloorSpacing(team, player);
+      player.moveTo(blend(assignedPos, spacing, 0.7));
+    }
+  });
+}`,
+  },
+  {
+    genre: 'Stealth Games',
+    icon: '🥷',
+    color: '#d29922',
+    games: ['Metal Gear Solid V', 'Hitman: WoA', 'Splinter Cell', 'Dishonored'],
+    techniques: [
+      { name: 'HFSM', tag: 'hfsm', role: 'Guard states: Unaware (Patrol/Idle/Chat) → Suspicious (Investigate/Search) → Alert (Combat/Call Backup). Each level has sub-behaviors.' },
+      { name: 'A* Pathfinding', tag: 'pathfinding', role: 'Guard patrol routes + dynamic search patterns. When suspicious, pathfind to last known player position + expand search radius.' },
+      { name: 'Utility AI', tag: 'utility', role: 'Suspicion scoring: saw open door (+0.2) + heard noise (+0.3) + found unconscious body (+0.8) → threshold triggers Alert transition.' },
+      { name: 'FSM', tag: 'fsm', role: 'Sensory system: multi-modal detection via sight cones (FOV + distance) + hearing radius (noise level) + environmental awareness (open doors, blood).' },
+    ],
+    keyInsight: 'Stealth AI must be predictable enough to learn but reactive enough to surprise. MGS pioneered audio/visual dual detection. Hitman emphasizes observation-based gameplay — guards logically deduce from environmental clues (open doors, missing disguises). The best stealth AI gives players a "language" to learn and exploit.',
+    implementation: `// Stealth AI: Multi-sensory detection + search behavior
+function updateGuard(guard, dt) {
+  // Sensory input accumulates suspicion
+  let suspicion = guard.suspicion;
+
+  // Visual detection (cone-based)
+  if (inSightCone(guard, player) && hasLineOfSight(guard, player)) {
+    const dist = distance(guard, player);
+    suspicion += (1.0 - dist / maxSight) * dt * 2.0;
+  }
+
+  // Audio detection
+  const noise = getNoiseAtPosition(guard.position);
+  if (noise > 0.3) suspicion += noise * dt;
+
+  // Environmental clues
+  if (seesOpenDoor(guard)) suspicion += 0.1;
+  if (seesBody(guard))     suspicion += 0.8;
+
+  // State transitions based on suspicion threshold
+  if (suspicion > 1.0) guard.state = 'ALERT.Combat';
+  else if (suspicion > 0.5) guard.state = 'SUSPICIOUS.Investigate';
+  else guard.state = 'UNAWARE.' + guard.currentSubState;
+
+  guard.suspicion = Math.max(0, suspicion - dt * 0.1); // decay
+}`,
+  },
+  {
+    genre: 'Open World / RPG',
+    icon: '🗺️',
+    color: '#bc8cff',
+    games: ['Red Dead Redemption 2', 'Skyrim', 'GTA V', 'The Witcher 3'],
+    techniques: [
+      { name: 'HFSM', tag: 'hfsm', role: 'NPC daily schedules: DayTime (Work→Eat→Socialize) → NightTime (GoHome→Sleep). RDR2 NPCs live independently of player.' },
+      { name: 'Behavior Tree', tag: 'bt', role: 'Skyrim Radiant AI: BT + ML for adaptive NPC schedules. Dynamic quest generation based on player history and world state.' },
+      { name: 'LLM NPC', tag: 'llm', role: 'Next frontier: Mantella mod gives every Skyrim NPC LLM-powered voice dialogue with persistent memory and personality.' },
+      { name: 'Steering', tag: 'steering', role: 'GTA V: 1000+ pedestrians + vehicles using steering behaviors. Pedestrians flock on sidewalks, cars follow traffic rules with avoidance.' },
+    ],
+    keyInsight: 'Open world AI prioritizes believability over intelligence. RDR2\'s NPCs have the deepest simulation — complex needs-based AI where NPCs make plans, follow routines, and create emergent moments. The challenge is LOD (Level of Detail) — full AI for nearby NPCs, simplified for distant ones. Skyrim\'s Radiant Story generates quests parametrically.',
+    implementation: `// Open World NPC: Daily schedule + emergent behavior
+class OpenWorldNPC {
+  constructor(personality, home, workplace) {
+    this.schedule = new DailySchedule([
+      { time: '06:00', action: 'WakeUp', location: home },
+      { time: '07:00', action: 'Eat', location: home },
+      { time: '08:00', action: 'GoToWork', location: workplace },
+      { time: '17:00', action: 'Socialize', location: tavern },
+      { time: '21:00', action: 'GoHome', location: home },
+    ]);
+  }
+
+  update(dt, worldEvents) {
+    const scheduled = this.schedule.getCurrentAction(gameTime);
+
+    // React to world events (emergent behavior)
+    if (worldEvents.nearbyDanger) return this.flee();
+    if (worldEvents.playerTalking) return this.engageDialogue();
+    if (worldEvents.weatherBad) return this.seekShelter();
+
+    // Follow daily routine
+    this.executeAction(scheduled);
+  }
+}`,
+  },
+  {
+    genre: 'MOBA',
+    icon: '🏰',
+    color: '#58a6ff',
+    games: ['Dota 2', 'League of Legends', 'Smite', 'Heroes of the Storm'],
+    techniques: [
+      { name: 'HFSM', tag: 'hfsm', role: 'Role-based hierarchy: Laner (Farm→Poke→AllIn→Retreat) | Jungler (FarmCamps→Gank→Objective→Counter). Top-level: TeamFight mode overrides all.' },
+      { name: 'Utility AI', tag: 'utility', role: 'Score lane actions: last-hit creep (gold value) vs harass enemy (HP trade) vs ward (vision) vs roam (gank opportunity). Dynamic per game phase.' },
+      { name: 'RL', tag: 'rl', role: 'OpenAI Five: multi-agent RL with 45K years of self-play. Excellent teamfight micro but weak at macro strategy (map control, timing).' },
+      { name: 'GOAP', tag: 'goap', role: 'Objective planning: Goal(DestroyBase) → TakeBaronBuff → SiegeInhibitor → GroupMid. Plans adapt to team composition and gold lead.' },
+    ],
+    keyInsight: 'MOBA AI requires both individual mastery and team coordination. OpenAI Five proved RL can learn amazing teamfight execution but struggles with long-term strategy. The solution: hierarchical models separating Macro (where to be, what objective) from Micro (how to fight, when to use abilities). Collective team intelligence outperforms individual skill.',
+    implementation: `// MOBA AI: Hierarchical Macro + Micro
+class MOBAAgent {
+  // MACRO: Strategic layer (every 10 seconds)
+  evaluateMacro(gameState) {
+    const phase = getGamePhase(gameState.timer);
+    const scores = {
+      farm:      phase === 'early' ? 0.8 : 0.3,
+      gank:      enemyOverextended() ? 0.9 : 0.2,
+      objective: objectiveUp() && teamAlive(4) ? 0.85 : 0.1,
+      teamfight: teamAdvantage() > 0.6 ? 0.9 : 0.4,
+      defend:    towerUnderAttack() ? 1.0 : 0.0,
+    };
+    return pickHighestScore(scores);
+  }
+
+  // MICRO: Combat layer (every frame)
+  executeCombat(hero, enemies, allies) {
+    const target = selectTarget(enemies); // lowest HP + highest threat
+    const abilities = hero.getReadyAbilities();
+    const combo = findBestCombo(abilities, target, allies);
+
+    if (hero.health / hero.maxHealth < 0.2) return kiteRetreat(hero);
+    if (combo.damage > target.health) return executeCombo(combo);
+    return autoAttack(hero, target);
+  }
+}`,
+  },
+];
+
 export class InfoModal {
   constructor() {
     this._currentId = null;
@@ -470,34 +735,93 @@ export class InfoModal {
     this._modal.innerHTML = `
       <div class="info-modal-content">
         <div class="info-modal-header">
-          <h2>${data.title}</h2>
+          <h2>Game AI Reference</h2>
           <button class="info-modal-close">&times;</button>
         </div>
-        <p class="info-modal-desc">${data.description}</p>
+        <div class="info-tabs">
+          <button class="info-tab active" data-tab="technique">This Technique</button>
+          <button class="info-tab" data-tab="genres">AI by Genre</button>
+        </div>
 
-        <div class="info-section">
-          <h3>Game Examples</h3>
-          <div class="game-cards">
-            ${data.games.map(g => `
-              <div class="game-card">
-                <div class="game-card-header">
-                  <span class="game-name">${g.name}</span>
-                  <span class="game-year">${g.year}</span>
+        <div class="info-tab-content" id="tab-technique">
+          <h2 class="info-technique-title">${data.title}</h2>
+          <p class="info-modal-desc">${data.description}</p>
+
+          <div class="info-section">
+            <h3>Game Examples</h3>
+            <div class="game-cards">
+              ${data.games.map(g => `
+                <div class="game-card">
+                  <div class="game-card-header">
+                    <span class="game-name">${g.name}</span>
+                    <span class="game-year">${g.year}</span>
+                  </div>
+                  <p class="game-usage">${g.usage}</p>
+                  <p class="game-highlight">${g.highlight}</p>
                 </div>
-                <p class="game-usage">${g.usage}</p>
-                <p class="game-highlight">${g.highlight}</p>
-              </div>
-            `).join('')}
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="info-section">
+            <h3>Implementation Pattern</h3>
+            <div class="info-key-idea">${data.keyIdea}</div>
+            <pre class="info-code"><code>${this._escapeHtml(data.implementation)}</code></pre>
           </div>
         </div>
 
-        <div class="info-section">
-          <h3>Implementation Pattern</h3>
-          <div class="info-key-idea">${data.keyIdea}</div>
-          <pre class="info-code"><code>${this._escapeHtml(data.implementation)}</code></pre>
+        <div class="info-tab-content hidden" id="tab-genres">
+          ${GENRE_GUIDE.map(g => `
+            <div class="genre-block">
+              <div class="genre-header" style="border-left-color: ${g.color}">
+                <span class="genre-icon">${g.icon}</span>
+                <div>
+                  <div class="genre-title">${g.genre}</div>
+                  <div class="genre-games">${g.games.join(' · ')}</div>
+                </div>
+              </div>
+              <div class="genre-body hidden">
+                <div class="genre-techniques">
+                  ${g.techniques.map(t => `
+                    <div class="genre-tech">
+                      <span class="genre-tech-tag" style="color: ${g.color}">${t.name}</span>
+                      <span class="genre-tech-role">${t.role}</span>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="info-key-idea">${g.keyInsight}</div>
+                <pre class="info-code"><code>${this._escapeHtml(g.implementation)}</code></pre>
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
     `;
+
+    // Tab switching
+    this._modal.querySelectorAll('.info-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        this._modal.querySelectorAll('.info-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this._modal.querySelectorAll('.info-tab-content').forEach(c => c.classList.add('hidden'));
+        this._modal.querySelector(`#tab-${tab.dataset.tab}`).classList.remove('hidden');
+      });
+    });
+
+    // Genre accordion
+    this._modal.querySelectorAll('.genre-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const body = header.nextElementSibling;
+        const wasHidden = body.classList.contains('hidden');
+        // Close all others
+        this._modal.querySelectorAll('.genre-body').forEach(b => b.classList.add('hidden'));
+        this._modal.querySelectorAll('.genre-header').forEach(h => h.classList.remove('genre-header-open'));
+        if (wasHidden) {
+          body.classList.remove('hidden');
+          header.classList.add('genre-header-open');
+        }
+      });
+    });
 
     this._modal.querySelector('.info-modal-close').addEventListener('click', () => this.hide());
     this._modal.classList.remove('hidden');

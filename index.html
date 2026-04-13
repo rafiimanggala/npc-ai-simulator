@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NPC AI Simulator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+  <header id="top-bar">
+    <div class="logo">🧠 NPC AI Simulator</div>
+    <nav id="technique-tabs"></nav>
+  </header>
+  <main id="app">
+    <section id="simulation-panel">
+      <div class="panel-header">SIMULATION WORLD</div>
+      <div id="sim-canvas"></div>
+    </section>
+    <section id="graph-panel">
+      <div class="panel-header">AI DECISION GRAPH — <span id="graph-title">FSM</span></div>
+      <div id="graph-container"></div>
+    </section>
+  </main>
+  <footer id="bottom-bar">
+    <div id="controls"></div>
+    <div id="info-panel"></div>
+  </footer>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
